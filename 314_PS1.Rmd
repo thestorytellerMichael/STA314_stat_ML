@@ -1,0 +1,138 @@
+---
+title: "STA314_PS1"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,include=FALSE}
+library(tidyverse)
+```
+```{r}
+# part a
+set.seed(12345)
+n<-200
+# define the function
+f <- function(x) { 2 * sin(x) * log(x) }
+# generate data
+x <- runif(n, 1, 10)
+y <- f(x) + rnorm(n, 0, 1)
+# data separation
+data <- data.frame(x = x, y = y)
+training_data <- data[1:(n/2),]
+testing_data <- data[(n/2 + 1):n,]
+# plot
+plot(y ~ x, data = training_data, main = "Training")
+plot(y ~ x, data = testing_data, main = "Testing")
+
+```
+
+
+
+```{r}
+# part b
+# fit the model
+mod1 <- lm(formula = y ~ sin(x) + sin(x/2), data = training_data)
+# prediction
+pred_training <- predict(object = mod1, newdata = training_data)
+pred_testing <- predict(object = mod1, newdata = testing_data)
+# plot
+plot(pred_training ~ training_data$x, main = "Training")
+plot(pred_testing ~ testing_data$x, main = "Testing")
+
+```
+```{r}
+#part c
+train_MSE <- mean((training_data$y - pred_training)^2)
+test_MSE <- mean((testing_data$y - pred_testing)^2)
+print(paste("Training MSE: ", train_MSE))
+print(paste("Testing MSE: ", test_MSE))
+# Expecting training set to be larger, because the training set is more spread due to the scatterplot
+```
+
+```{r}
+#part d
+set.seed(12345)
+yhat <- c()
+# The location to predict
+x0 <- 3
+data_to_predict <- data.frame(x = x0)
+
+# Let's repeat the previous procedure for B times
+B = 500
+
+for (i in 1:B) {
+  # Simulate new training outcomes
+  y_new <- f(training_data$x) + rnorm(nrow(training_data), mean = 0, sd = 1)
+  training_data_new <- data.frame(x = training_data$x, y = y_new)
+
+  # Fit new model
+  modnew <- lm(y ~ sin(x) + sin(x/2), data = training_data_new)
+
+  # Obtain the prediction
+  yhat[i] <- predict(modnew, newdata = data_to_predict)
+}
+
+# Variance of the prediction
+var_yhat <- var(yhat)
+
+# Bias of the prediction
+bias_yhat <- mean(yhat - f(x0))
+
+var_yhat
+bias_yhat
+
+```
+
+```{r}
+#part e
+# Define the KNN regression function
+knn_regression <- function(k, training, testing) {
+  result <- numeric(nrow(testing))
+  for (i in 1:length(result)) {
+    x0 <- as.numeric(testing[i, , drop = FALSE])
+    # Compute distances
+    distance_vec <- abs(training$x - x0)
+
+    N0 <- which(rank(distance_vec)<=k)
+    result[i] <- mean(training[N0,2])
+  }
+  result
+}
+
+knn_prediction_training <- knn_regression(k = 3, training = training_data, testing = training_data[,1, drop = FALSE])
+knn_prediction_testing <- knn_regression(k = 3, training = training_data, testing = testing_data[,1, drop = FALSE])
+plot(knn_prediction_training ~ training_data$x, main = "Training")
+plot(knn_prediction_testing ~ testing_data$x, main = "Testing")
+training_MSE <- mean((knn_prediction_training - training_data$y)^2)
+print(paste("Training MSE: ", training_MSE))
+testing_MSE <- mean((knn_prediction_testing - testing_data$y)^2)
+print(paste("Testing MSE: ", testing_MSE))
+
+```
+
+```{r}
+#part f
+kvec <- 1:50
+training_MSE_vec <- c()
+testing_MSE_vec <- c()
+
+for (i in 1:length(kvec)) {
+  knn_prediction_training <- knn_regression(k = kvec[i], training = training_data, testing = training_data[,1, drop = FALSE])
+  knn_prediction_testing <- knn_regression(k = kvec[i], training = training_data, testing = testing_data[,1, drop = FALSE])
+  training_MSE <- mean((knn_prediction_training - training_data$y)^2)
+  testing_MSE <- mean((knn_prediction_testing - testing_data$y)^2)
+  training_MSE_vec[i] <- training_MSE
+  testing_MSE_vec[i] <- testing_MSE
+}
+
+plot(training_MSE_vec ~ kvec, type = 'o', col = "red")
+lines(testing_MSE_vec~kvec,type='o',col="blue")
+
+```
+
